@@ -1,0 +1,50 @@
+{
+  "extends": "./.nuxt/tsconfig.json",
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "strict": true,
+    "jsx": "preserve",
+    "allowJs": true,
+    "baseUrl": ".",
+    "types": [
+      "vue",
+      "vite/client",
+      "node",
+      "nuxt",
+      "element-plus/global",
+      "@element-plus/icons-vue"
+    ],
+    "paths": {
+      "~/*": ["./*"],
+      "@/*": ["./*"],
+      "~components/*": ["./components/*"],
+      "~layouts/*": ["./layouts/*"],
+      "~views/*": ["./views/*"],
+      "#app": [".nuxt/app"],
+      "#build/*": [".nuxt/build/*"],
+      "#imports": [".nuxt/imports"],
+      "#imports/*": [".nuxt/imports/*"],
+      "#internal/*": [".nuxt/internal/*"],
+      "#pages": [".nuxt/pages"],
+      "#pages/*": [".nuxt/pages/*"],
+      "#plugins": [".nuxt/plugins"],
+      "#plugins/*": [".nuxt/plugins/*"],
+      "#types": [".nuxt/types"],
+      "#types/*": [".nuxt/types/*"]
+    },
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "nuxt.config.ts",
+    "**/*.ts",
+    "**/*.vue",
+    "types/**/*.d.ts",
+    ".nuxt/**/*.d.ts"
+  ],
+  "exclude": ["node_modules"]
+}
