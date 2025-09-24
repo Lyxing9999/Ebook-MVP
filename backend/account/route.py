@@ -12,7 +12,7 @@ async def save_account(account: dict = Body(...)):
     required_fields = ["email", "password"]
     if not all(field in account for field in required_fields):
         return JSONResponse({"error": "Missing required fields"}, status_code=400)
-
+    account["status"] = account.get("status", "normal")
     existing = await accounts_collection.find_one({"email": account["email"]})
     if existing:
         return JSONResponse({"error": "Email already exists"}, status_code=400)

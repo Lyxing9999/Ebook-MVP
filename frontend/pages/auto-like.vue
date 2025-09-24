@@ -1,116 +1,178 @@
-<script setup>
-import { ref, nextTick, onUnmounted } from "vue";
-import { ElMessage, ElInput, ElButton, ElCard } from "element-plus";
+<template>
+  <el-row :gutter="20">
+    <!-- Left: Form -->
+    <el-col :span="12">
+      <ElCard>
+        <h1 class="text-2xl font-bold mb-4">Facebook Auto Like</h1>
 
-definePageMeta({
-  layout: "main",
-  middleware: [],
-});
-const username = ref("");
-const password = ref("");
-const postUrl = ref("");
-const logs = ref([]);
+        <!-- Posts -->
+        <div class="mb-4">
+          <h3 class="font-semibold mb-2">Post URLs</h3>
+          <div
+            v-for="(post, index) in posts"
+            :key="index"
+            class="flex gap-2 mb-2"
+          >
+            <ElInput v-model="posts[index]" placeholder="Post URL" />
+            <ElButton type="danger" @click="removePost(index)">Remove</ElButton>
+          </div>
+          <ElButton type="primary" @click="addPost">Add Post</ElButton>
+        </div>
+
+        <!-- Concurrency -->
+        <ElForm class="mb-4">
+          <ElFormItem label="Chrome Open">
+            <ElInput v-model.number="concurrency" type="number" min="1" />
+          </ElFormItem>
+        </ElForm>
+
+        <!-- Buttons -->
+        <div class="flex gap-2 mb-4">
+          <ElButton type="success" :loading="loading" @click="startAutoLike"
+            >Start</ElButton
+          >
+          <ElButton @click="stopAutoLike">Stop</ElButton>
+        </div>
+
+        <!-- Logs -->
+        <div
+          id="log-container"
+          class="h-64 overflow-auto border p-2 bg-gray-50 font-mono"
+        >
+          <div v-for="(log, index) in logs" :key="index">{{ log }}</div>
+        </div>
+      </ElCard>
+    </el-col>
+
+    <!-- Right: Accounts -->
+    <el-col :span="12">
+      <ElCard>
+        <div class="mb-4">
+          <h3 class="font-semibold mb-2">Accounts</h3>
+          <AccountList :accounts="accounts" @update:accounts="updateAccounts" />
+        </div>
+      </ElCard>
+    </el-col>
+  </el-row>
+</template>
+
+<script setup lang="ts">
+import { ref, nextTick, onMounted, onBeforeUnmount } from "vue";
+import { ElInput, ElButton, ElCard, ElForm, ElFormItem } from "element-plus";
+import { useAccountStore } from "~/stores/account";
+import AccountList from "~/components/accounts/AccountList.vue";
+
+definePageMeta({ layout: "main" });
+
+interface Account {
+  username: string;
+  password: string;
+  selected: boolean;
+}
+
+// Store
+const accountStore = useAccountStore();
+
+// State
+const accounts = ref<Account[]>([]);
+const posts = ref<string[]>([""]);
+const concurrency = ref(3);
+const logs = ref<string[]>([]);
 const loading = ref(false);
-const showLogs = ref(false);
 
-let eventSource = null;
+let eventSource: EventSource | null = null;
 
-const handleSubmit = (e) => {
-  e.preventDefault();
-  if (!username.value || !password.value || !postUrl.value) {
-    ElMessage.warning("Please fill in all fields.");
+// Load accounts from store
+onMounted(async () => {
+  await accountStore.getAccounts();
+  accounts.value = accountStore.data.map((acc) => ({
+    username: acc.username,
+    password: acc.password,
+    selected: true, // default selected
+  }));
+});
+
+// Manage posts
+const addPost = () => posts.value.push("");
+const removePost = (index: number) => posts.value.splice(index, 1);
+
+// Update accounts from AccountList
+const updateAccounts = (updatedAccounts: Account[]) => {
+  accounts.value = updatedAccounts;
+};
+
+// Start Auto Like
+const startAutoLike = async () => {
+  const selectedAccounts = accounts.value.filter((acc) => acc.selected);
+  if (!selectedAccounts.length || !posts.value.length) {
+    alert("Please select at least one account and add at least one post!");
     return;
   }
 
-  // Reset logs
   logs.value = [];
   loading.value = true;
-  showLogs.value = true;
+  eventSource?.close();
 
-  // Close any existing EventSource
-  if (eventSource) eventSource.close();
-
-  // Start new EventSource
-  eventSource = new EventSource(
-    `http://localhost:5000/facebook/auto_like?username=${encodeURIComponent(
-      username.value
-    )}&password=${encodeURIComponent(
-      password.value
-    )}&post_url=${encodeURIComponent(postUrl.value)}`
-  );
-
-  eventSource.onmessage = async (e) => {
-    logs.value.push(e.data);
-    await nextTick();
-    const container = document.getElementById("logs-container");
-    if (container) container.scrollTop = container.scrollHeight;
-
-    // Stop loading when task finishes
-    if (e.data === "[INFO] Task completed.") {
-      loading.value = false;
-      eventSource.close();
-      eventSource = null;
-    }
+  const payload = {
+    accounts: selectedAccounts.map((acc) => ({
+      username: acc.username,
+      password: acc.password,
+    })),
+    post_urls: posts.value.filter((p) => p),
+    concurrency: concurrency.value,
   };
 
-  eventSource.onerror = () => {
-    logs.value.push("[DEBUG] Stream ended unexpectedly.");
+  try {
+    const response = await fetch("http://localhost:5000/facebook/auto_like", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.body) throw new Error("No response from server");
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+
+    eventSource = { close: () => reader.cancel() } as any;
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      chunk.split("\n\n").forEach((line) => {
+        if (line.startsWith("data: ")) {
+          const log = line.replace("data: ", "").trim();
+          logs.value.push(log);
+
+          nextTick(() => {
+            const container = document.getElementById("log-container");
+            if (container) container.scrollTop = container.scrollHeight;
+          });
+        }
+      });
+    }
+  } catch (err: any) {
+    logs.value.push(`Error: ${err.message}`);
+  } finally {
     loading.value = false;
-    if (eventSource) {
-      eventSource.close();
-      eventSource = null;
-    }
-  };
+  }
 };
 
-// Cleanup on unmount
-onUnmounted(() => {
-  if (eventSource) eventSource.close();
-});
+// Stop Auto Like
+const stopAutoLike = () => {
+  eventSource?.close();
+  loading.value = false;
+  eventSource = null;
+};
+
+// Clean up on unmount
+onBeforeUnmount(() => stopAutoLike());
 </script>
 
-<template>
-  <el-card class="auto-like-card">
-    <h2>Facebook Auto-Like Demo</h2>
-
-    <form @submit="handleSubmit" class="form">
-      <el-input v-model="username" placeholder="Facebook Username" />
-      <el-input v-model="password" type="password" placeholder="Password" />
-      <el-input v-model="postUrl" placeholder="Post URL" />
-      <el-button type="primary" :loading="loading" native-type="submit">
-        Start Auto Like
-      </el-button>
-    </form>
-
-    <div v-if="showLogs" id="logs-container" class="logs-panel">
-      <div v-for="(log, i) in logs" :key="i">{{ log }}</div>
-    </div>
-  </el-card>
-</template>
-
 <style scoped>
-.auto-like-card {
-  max-width: 600px;
-  margin: 40px auto;
-  padding: 20px;
-  border-radius: 16px;
-}
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 20px;
-}
-.logs-panel {
-  margin-top: 20px;
-  padding: 10px;
-  background: #1e1e1e;
-  color: #d4d4d4;
-  font-family: monospace;
-  font-size: 14px;
-  max-height: 300px;
-  overflow-y: auto;
-  border-radius: 8px;
-  scroll-behavior: smooth;
+#log-container {
+  white-space: pre-wrap;
 }
 </style>

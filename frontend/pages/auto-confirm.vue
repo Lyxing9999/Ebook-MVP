@@ -4,8 +4,8 @@
       <ElCard>
         <!-- Options Section -->
         <ElForm class="mb-4">
-          <ElFormItem label="Max Friends per Account">
-            <ElInput v-model.number="maxToAdd" type="number" min="1" />
+          <ElFormItem label="Max Friend Requests per Account">
+            <ElInput v-model.number="maxToConfirm" type="number" min="1" />
           </ElFormItem>
           <ElFormItem label="Chrome Open (Concurrency)">
             <ElInput
@@ -18,13 +18,13 @@
 
         <!-- Start/Stop Buttons -->
         <div class="flex gap-2 mb-4">
-          <ElButton type="success" :loading="loading" @click="startAutoAdd">
-            Start Auto Add Friends
+          <ElButton type="success" :loading="loading" @click="startAutoConfirm">
+            Start Auto Confirm
           </ElButton>
-          <ElButton type="danger" @click="stopAutoAdd">Stop</ElButton>
+          <ElButton type="danger" @click="stopAutoConfirm">Stop</ElButton>
         </div>
 
-        <!-- Logs Section -->
+        <!-- Logs -->
         <div
           id="log-container"
           class="h-64 overflow-auto border p-2 bg-gray-50 font-mono"
@@ -48,7 +48,7 @@
 import { ref, onMounted } from "vue";
 import { ElInput, ElButton, ElCard, ElForm, ElFormItem } from "element-plus";
 import AccountList from "~/components/accounts/AccountList.vue";
-import { useAccountStore } from "~/stores/account";
+import { useAccountStore } from "~/stores/account"; // Ensure correct import
 
 definePageMeta({ layout: "main" });
 
@@ -62,8 +62,8 @@ interface Account {
 const accounts = ref<Account[]>([
   { username: "", password: "", selected: false },
 ]);
-const maxToAdd = ref(50);
-const concurrentBrowsers = ref(5);
+const maxToConfirm = ref(40);
+const concurrentBrowsers = ref(3);
 const logs = ref<string[]>([]);
 const loading = ref(false);
 
@@ -76,7 +76,7 @@ onMounted(async () => {
   accounts.value = accountStore.data.map((acc) => ({
     username: acc.username,
     password: acc.password,
-    selected: false,
+    selected: false, // default selected false
   }));
 });
 
@@ -85,8 +85,8 @@ const updateAccounts = (updatedAccounts: Account[]) => {
   accounts.value = updatedAccounts;
 };
 
-// Start Auto Add Friends
-const startAutoAdd = async () => {
+// Start Auto Confirm
+const startAutoConfirm = async () => {
   const selectedAccounts = accounts.value.filter((a) => a.selected);
   if (!selectedAccounts.length) {
     alert("Please select at least one account!");
@@ -98,13 +98,13 @@ const startAutoAdd = async () => {
 
   const payload = {
     accounts: selectedAccounts,
-    max_to_add: maxToAdd.value,
+    max_to_confirm: maxToConfirm.value,
     concurrent_browsers: concurrentBrowsers.value,
   };
 
   try {
     const response = await fetch(
-      "http://localhost:5000/facebook/auto_add_friends_multi",
+      "http://localhost:5000/facebook/auto_confirm_multi",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -138,8 +138,8 @@ const startAutoAdd = async () => {
   }
 };
 
-// Stop Auto Add
-const stopAutoAdd = () => {
+// Stop Auto Confirm
+const stopAutoConfirm = () => {
   loading.value = false;
 };
 </script>

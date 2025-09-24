@@ -8,9 +8,18 @@ from auto.auto_like import auto_like
 from auto.auto_comment import auto_comment
 from auto.auto_shared import auto_share
 import asyncio
-from account.route import router as accounts_router
+
 app = FastAPI()
+
+# Account
+from account.route import router as accounts_router
 app.include_router(accounts_router)
+
+# Auth
+from auth.auth import router as auth_router
+app.include_router(auth_router)
+
+
 # Allow CORS
 app.add_middleware(
     CORSMiddleware,
@@ -28,16 +37,17 @@ os.environ["PLAYWRIGHT_BROWSERS_PATH"] = "/Users/kaingbunly/.playwright"
 
 @app.get("/facebook/post")
 async def auto_post_endpoint(username: str = Query(...), password: str = Query(...), content: str = Query(...)):
-    if not all([username, password, content]):
-        return JSONResponse({"error": "Missing fields"}, status_code=400)
-
+    queue = asyncio.Queue()
     async def event_generator():
+        task = asyncio.create_task(create_post(username, password, content, queue))
         try:
-            async for log in create_post(username, password, content):
+            while True:
+                log = await queue.get()
                 yield f"data: {log}\n\n"
-        except Exception as e:
-            yield f"data: [ERROR] {str(e)}\n\n"
-
+                if log.startswith("Test finished"):
+                    break
+        finally:
+            task.cancel()
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 

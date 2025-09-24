@@ -1,0 +1,24 @@
+{
+  "tuesday": "Tuesday",
+  "september": "September",
+  "23": "23",
+  "2025": "2025",
+  "dashboard": "Dashboard",
+  "accounts": "Accounts",
+  "autoPost": "Auto Post",
+  "autoLike": "Auto Like",
+  "autoShare": "Auto Share",
+  "autoComment": "Auto Comment",
+  "settings": "Settings",
+  "profile": "Profile",
+  "logout": "Logout",
+  "cards": {
+    "accountsDesc": "Manage all accounts",
+    "autoPostDesc": "Schedule and post automatically",
+    "autoLikeDesc": "Automatically like posts",
+    "autoCommentDesc": "Automatically comment on posts",
+    "autoShareDesc": "Automatically share posts",
+    "settingsDesc": "Configure system settings"
+  },
+  "openTool": "Open tool →"
+}
