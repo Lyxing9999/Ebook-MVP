@@ -6,8 +6,8 @@ from playwright.async_api import async_playwright, TimeoutError
 async def _login_to_facebook(page, username, password, queue: asyncio.Queue):
     """Performs a robust login on m.facebook.com."""
     await queue.put(f"Attempting to log in as {username}...")
+
     await page.goto("https://m.facebook.com")
-    
     await page.locator('input[name="email"]').fill(username)
     await page.locator('input[name="pass"]').fill(password)
     await page.get_by_role('button', name="Log In").click()

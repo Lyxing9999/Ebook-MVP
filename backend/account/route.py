@@ -2,24 +2,41 @@ from fastapi import Body, Path, Query
 from fastapi.responses import JSONResponse
 from database.db import accounts_collection
 from bson import ObjectId
+from typing import List, Dict, Union
+
 from fastapi import APIRouter
 router = APIRouter(prefix="/facebook", tags=["Accounts"])
 # -------------------------------
 # CREATE
 # -------------------------------
+
+
 @router.post("/save_account")
-async def save_account(account: dict = Body(...)):
-    required_fields = ["email", "password"]
-    if not all(field in account for field in required_fields):
-        return JSONResponse({"error": "Missing required fields"}, status_code=400)
-    account["status"] = account.get("status", "normal")
-    existing = await accounts_collection.find_one({"email": account["email"]})
-    if existing:
-        return JSONResponse({"error": "Email already exists"}, status_code=400)
+async def save_accounts(accounts: Union[Dict, List[Dict]] = Body(...)):
+    """
+    Accepts either a single account dict or a list of accounts.
+    """
+    if isinstance(accounts, dict):
+        accounts = [accounts]  # wrap single account into list
 
-    result = await accounts_collection.insert_one(account)
-    return {"success": True, "id": str(result.inserted_id)}
+    saved = []
+    errors = []
 
+    for account in accounts:
+        if "username" not in account or "password" not in account:
+            errors.append({"account": account, "error": "Missing username or password"})
+            continue
+
+        account["status"] = account.get("status", "normal")
+        existing = await accounts_collection.find_one({"username": account["username"]})
+        if existing:
+            errors.append({"account": account, "error": "Username already exists"})
+            continue
+
+        result = await accounts_collection.insert_one(account)
+        saved.append({"username": account["username"], "id": str(result.inserted_id)})
+
+    return {"success": True, "saved": saved, "errors": errors}
 
 # -------------------------------
 # READ (all or single)

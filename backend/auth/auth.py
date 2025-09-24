@@ -31,23 +31,23 @@ def create_token(data: dict, expires_minutes: int = 60):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # ===== Register =====
-@router.post("/register", response_model=AuthResponse)
-async def register(form: UserRegisterForm):
-    existing_user = await users_collection.find_one({"email": form.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="User already exists")
+# @router.post("/register", response_model=AuthResponse)
+# async def register(form: UserRegisterForm):
+#     existing_user = await users_collection.find_one({"email": form.email})
+#     if existing_user:
+#         raise HTTPException(status_code=400, detail="User already exists")
     
-    user_doc = {
-        "email": form.email,
-        "password": form.password,
-        "role": "user",
-        "created_at": datetime.utcnow()
-    }
-    result = await users_collection.insert_one(user_doc)
+#     user_doc = {
+#         "email": form.email,
+#         "password": form.password,
+#         "role": "user",
+#         "created_at": datetime.utcnow()
+#     }
+#     result = await users_collection.insert_one(user_doc)
 
-    access_token = create_token({"sub": form.email, "role": "user"})
-    refresh_token = create_token({"sub": form.email, "role": "user"}, expires_minutes=1440)
-    return {"access_token": access_token, "refresh_token": refresh_token}
+#     access_token = create_token({"sub": form.email, "role": "user"})
+#     refresh_token = create_token({"sub": form.email, "role": "user"}, expires_minutes=1440)
+#     return {"access_token": access_token, "refresh_token": refresh_token}
 
 # ===== Login =====
 @router.post("/login", response_model=AuthResponse)

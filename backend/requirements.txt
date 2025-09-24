@@ -1,0 +1,7 @@
+fastapi==0.111.0
+uvicorn[standard]==0.23.2
+motor==4.3.3
+pymongo[srv]==4.4.1
+playwright==1.37.0
+python-dotenv==1.0.0
+httpx==0.26.2
