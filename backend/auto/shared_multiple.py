@@ -82,10 +82,10 @@ async def run_account(username, password, links, queue: asyncio.Queue):
 async def run_all_accounts(accounts, links, queue: asyncio.Queue, max_parallel=3):
     for i in range(0, len(accounts), max_parallel):
         batch = accounts[i:i+max_parallel]
-        tasks = [run_account(username, password, links, queue) for username, password in batch]
+        # Each account is a dict: {"username": ..., "password": ...}
+        tasks = [run_account(acc["username"], acc.get("password", ""), links, queue) for acc in batch]
         await asyncio.gather(*tasks)
     await queue.put("🎉 All shares completed!")
-
 
 # ---------------- MAIN ----------------
 # async def main():

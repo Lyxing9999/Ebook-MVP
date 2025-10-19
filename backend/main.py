@@ -239,17 +239,39 @@ async def auto_like_endpoint(data: dict = Body(...)):
 CONCURRENCY_LIMIT = 3
 from auto.shared_multiple import run_all_accounts
 
+
+# -----------------------------
+# Auto-share endpoint
+# -----------------------------
 @app.post("/facebook/auto_share")
 async def auto_share(data: dict = Body(...)):
+    """
+    Expects JSON payload:
+    {
+        "accounts": [{"username": "u1", "password": "p1"}, ...] OR ["u1", "u2"],
+        "post_urls": ["https://...", "https://..."],
+        "concurrency": 3  # optional
+    }
+    """
     accounts = data.get("accounts", [])
     links = data.get("post_urls", [])
     concurrency = int(data.get("concurrency", CONCURRENCY_LIMIT))
 
-    queue: asyncio.Queue = asyncio.Queue()
-    print(accounts, links, concurrency)
-    async def event_generator():
-        task = asyncio.create_task(run_all_accounts(accounts, links, queue, concurrency))
+    if not accounts or not links:
+        return {"error": True, "message": "accounts and post_urls are required."}
 
+    # Normalize accounts: allow strings or dicts
+    normalized_accounts = []
+    for acc in accounts:
+        if isinstance(acc, str):
+            normalized_accounts.append({"username": acc, "password": ""})
+        elif isinstance(acc, dict) and "username" in acc:
+            normalized_accounts.append(acc)
+
+    queue: asyncio.Queue = asyncio.Queue()
+
+    async def event_generator():
+        task = asyncio.create_task(run_all_accounts(normalized_accounts, links, queue, concurrency))
         try:
             while True:
                 msg = await queue.get()
@@ -257,7 +279,7 @@ async def auto_share(data: dict = Body(...)):
                 if msg.startswith("🎉 All shares completed!"):
                     break
         finally:
-            await task
+            task.cancel()
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
